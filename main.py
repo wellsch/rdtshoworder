@@ -1,7 +1,8 @@
 import tkinter as tk
-from app import FileUploadApp
+
+from app import DanceRosterApp
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = FileUploadApp(root)
+    app = DanceRosterApp(root)
     root.mainloop()

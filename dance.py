@@ -7,6 +7,8 @@ class Dance:
         self.name = name
         self.dancers = dancers
         self.weight = 0
+        self.locked = False
+        self.position = 0
 
     def add_nbr(self, dance: 'Dance'):
         self.nbrs.add(dance)
