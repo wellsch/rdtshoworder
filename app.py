@@ -1,8 +1,13 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 from pathlib import Path
+from typing import Dict, Set
 import pandas as pd
 from collections import defaultdict
+
+from dance import Dance
+from dancer import Dancer
+from dances import process_dances
 
 
 class FileUploadApp:
@@ -13,6 +18,7 @@ class FileUploadApp:
         self.root.resizable(True, True)
         
         self.file_path = None
+        self.dance_data = None
         
         # Create and configure the main frame
         self.main_frame = tk.Frame(root, padx=20, pady=20)
@@ -152,9 +158,11 @@ class FileUploadApp:
                 # Store dance and dancers in the dictionary
                 if dancers:
                     dance_roster[dance_name] = dancers
+
+            dances, all_dancers = process_dances(dance_roster)
             
             # Display the results
-            self.display_results(dance_roster)
+            self.display_results(dances, all_dancers)
             
             # Update status
             self.status_var.set(f"Successfully processed {Path(self.file_path).name}")
@@ -163,27 +171,18 @@ class FileUploadApp:
             self.status_var.set(f"Error: {str(e)}")
             messagebox.showerror("Error", f"Failed to process file: {str(e)}")
 
-    def display_results(self, dance_roster):
+    def display_results(self, dances: Set["Dance"], dancers: Dict[str, "Dancer"]):
         """Display the dance roster results in the text area"""
-        if not dance_roster:
-            self.results_text.insert(tk.END, "No dance data found in the file.")
-            return
         
         # Display the dance roster information
-        total_dances = len(dance_roster)
-        total_dancers = sum(len(dancers) for dancers in dance_roster.values())
+        total_dances = len(dances)
+        total_dancers = len(dancers)
         
         self.results_text.insert(tk.END, f"Found {total_dances} dances with {total_dancers} total dancers.\n\n")
         
         # Display each dance and its dancers
-        for dance_name, dancers in dance_roster.items():
-            self.results_text.insert(tk.END, f"Dance: {dance_name} ({len(dancers)} dancers)\n")
-            self.results_text.insert(tk.END, "-" * 50 + "\n")
-            
-            for i, dancer in enumerate(dancers, 1):
-                self.results_text.insert(tk.END, f"{i}. {dancer}\n")
-            
-            self.results_text.insert(tk.END, "\n")
+        for dance in dances:
+            self.results_text.insert(tk.END, str(dance) + "\n")
         
         # Save the dance data for potential further processing
-        self.dance_data = dance_roster
+        self.dance_data = (dances, dancers)
