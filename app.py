@@ -14,13 +14,16 @@ from dances import process_dances
 class DanceRosterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Drag & Drop Dance Roster Manager")
-        self.root.geometry("900x700")
+        self.root.title("Vertical Dance Roster Manager")
+        self.root.geometry("700x700")
         self.root.resizable(True, True)
         
         self.file_path = None
         self.dance_data = None
         self.dance_boxes = []
+        self.vertical_slots = []  # Y-coordinates of valid positions
+        self.slot_height = 100    # Height between slots
+        self.margin_top = 80      # Top margin
         
         # Create and configure the main frame
         self.main_frame = tk.Frame(root, padx=20, pady=20)
@@ -33,7 +36,7 @@ class DanceRosterApp:
         # Application title
         self.title_label = tk.Label(
             self.top_frame, 
-            text="Dance Roster Manager", 
+            text="Vertical Dance Order Manager", 
             font=("Arial", 16, "bold")
         )
         self.title_label.pack(side=tk.LEFT, pady=10)
@@ -83,7 +86,7 @@ class DanceRosterApp:
         # Reset button
         self.reset_button = tk.Button(
             self.buttons_frame,
-            text="Reset Layout",
+            text="Reset Order",
             command=self.reset_layout,
             width=15,
             bg="#E91E63",
@@ -100,35 +103,39 @@ class DanceRosterApp:
             self.main_frame,
             textvariable=self.file_path_var,
             font=("Arial", 10),
-            wraplength=800
+            wraplength=650
         )
         self.file_path_label.pack(fill=tk.X, pady=5)
+        
+        # Instructions label
+        self.instructions_label = tk.Label(
+            self.main_frame,
+            text="Drag dances vertically to reorder. Click the lock icon to lock/unlock a dance position.",
+            font=("Arial", 10, "italic"),
+            fg="#666666"
+        )
+        self.instructions_label.pack(fill=tk.X, pady=5)
         
         # Canvas for drag and drop interface
         self.canvas_frame = tk.Frame(self.main_frame, bd=2, relief=tk.SUNKEN)
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        # Create scrollbars
-        self.h_scrollbar = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
-        self.h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-        
+        # Create scrollbar (only vertical)
         self.v_scrollbar = tk.Scrollbar(self.canvas_frame)
         self.v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Create canvas
         self.canvas = tk.Canvas(
             self.canvas_frame,
-            width=800,
+            width=550,
             height=500,
-            scrollregion=(0, 0, 1500, 1000),
-            xscrollcommand=self.h_scrollbar.set,
+            scrollregion=(0, 0, 550, 1000),
             yscrollcommand=self.v_scrollbar.set,
             bg="white"
         )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Configure scrollbars
-        self.h_scrollbar.config(command=self.canvas.xview)
+        # Configure scrollbar
         self.v_scrollbar.config(command=self.canvas.yview)
         
         # Status message
@@ -171,6 +178,7 @@ class DanceRosterApp:
             # Clear previous results
             self.canvas.delete("all")
             self.dance_boxes = []
+            self.vertical_slots = []
             self.status_var.set("Processing...")
             self.root.update()
             
@@ -214,47 +222,87 @@ class DanceRosterApp:
             messagebox.showerror("Error", f"Failed to process file: {str(e)}")
 
     def display_results(self, dances: Set["Dance"], dancers: Dict[str, "Dancer"]):
-        """Display dance objects as draggable boxes on the canvas"""
+        """Display dance objects as vertically ordered draggable boxes on the canvas"""
         # Clear any existing content
         self.canvas.delete("all")
         self.dance_boxes = []
+        self.vertical_slots = []
         
         # Display summary at the top
         self.canvas.create_text(
             20, 20,
-            text=f"Found {len(dances)} dances with {len(dancers)} total dancers. Drag boxes to reorder. Click lock icon to lock/unlock.",
+            text=f"Found {len(dances)} dances with {len(dancers)} total dancers",
             font=("Arial", 12, "bold"),
             anchor="w"
         )
         
-        # Create dance boxes with initial position
-        x, y = 20, 50
-        max_x = 0
-        row_height = 0
+        # Create guide line down the middle
+        self.canvas.create_line(
+            50, self.margin_top, 50, self.margin_top + len(dances) * self.slot_height,
+            fill="#BBDEFB", width=2, dash=(4, 4)
+        )
         
+        # Create dance boxes in vertical order
         for i, dance in enumerate(dances):
-            # Create a new row every 3 dance boxes
-            if i > 0 and i % 3 == 0:
-                x = 20
-                y += row_height + 20
-                row_height = 0
+            # Set position property
+            dance.position = i
+            
+            # Calculate vertical position
+            y_position = self.margin_top + i * self.slot_height
+            self.vertical_slots.append(y_position)
             
             # Create the dance box
-            dance_box = DanceBox(self.canvas, x, y, dance)
+            dance_box = DanceBox(self.canvas, y_position, dance)
             self.dance_boxes.append(dance_box)
-            
-            # Update position for next box
-            box_width = dance_box.width
-            box_height = dance_box.height
-            x += box_width + 20
-            max_x = max(max_x, x)
-            row_height = max(row_height, box_height)
         
         # Update canvas scroll region
-        self.canvas.config(scrollregion=(0, 0, max_x, y + row_height + 50))
+        total_height = self.margin_top + len(dances) * self.slot_height + 50
+        self.canvas.config(scrollregion=(0, 0, 550, total_height))
         
         # Save the dance data for potential further processing
         self.dance_data = (dances, dancers)
+    
+    def find_nearest_slot(self, dragged_box):
+        """Find the nearest vertical slot to snap to and the corresponding position"""
+        # Check if any slots are available
+        if not self.vertical_slots:
+            return dragged_box.y, dragged_box.dance.position
+        
+        # Initialize variables
+        min_distance = float('inf')
+        nearest_slot = dragged_box.y
+        box_center_y = dragged_box.y + dragged_box.height / 2
+        position = dragged_box.dance.position
+        
+        # Create a list of available slots that are not occupied by locked boxes
+        locked_slots = set()
+        for box in self.dance_boxes:
+            if box.dance.locked and box != dragged_box:
+                locked_slots.add(box.vertical_slot)
+        
+        available_slots = [slot for slot in self.vertical_slots if slot not in locked_slots]
+        if not available_slots:
+            # If all slots are locked, keep original position
+            return dragged_box.vertical_slot, dragged_box.dance.position
+        
+        # Find the nearest available slot
+        for i, slot in enumerate(available_slots):
+            distance = abs(box_center_y - (slot + dragged_box.height / 2))
+            if distance < min_distance:
+                min_distance = distance
+                nearest_slot = slot
+                position = i
+        
+        return nearest_slot, position
+    
+    def update_all_positions(self):
+        """Update all position indicators based on vertical order"""
+        # Sort dance boxes by vertical position
+        sorted_boxes = sorted(self.dance_boxes, key=lambda box: box.y)
+        
+        # Update position indicators
+        for i, box in enumerate(sorted_boxes):
+            box.update_position_indicator(i)
     
     def save_order(self):
         """Save the current order of dances based on their vertical position"""
@@ -263,7 +311,7 @@ class DanceRosterApp:
             return
         
         # Sort dance boxes by vertical position
-        sorted_boxes = sorted(self.dance_boxes, key=lambda box: box.get_position()[1])
+        sorted_boxes = sorted(self.dance_boxes, key=lambda box: box.y)
         
         # Create a formatted order report
         order_report = "Dance Order:\n\n"
@@ -285,10 +333,16 @@ class DanceRosterApp:
         self.status_var.set("Dance order saved.")
     
     def reset_layout(self):
-        """Reset the layout of dance boxes to the original grid"""
+        """Reset the layout of dance boxes to the original order"""
         if not self.dance_data:
             return
             
         dances, dancers = self.dance_data
+        
+        # Reset the positions and locked state
+        for dance in dances:
+            dance.locked = False
+        
+        # Redisplay with original order
         self.display_results(dances, dancers)
-        self.status_var.set("Layout reset to default grid.")
+        self.status_var.set("Order reset to original sequence.")
