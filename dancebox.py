@@ -4,8 +4,9 @@ from dance import Dance
 
 
 class DanceBox:
-    def __init__(self, canvas, y_position, dance: Dance, width=450, height=80, 
+    def __init__(self, app, canvas, y_position, dance: Dance, width=450, height=80, 
                  x_margin=50, box_color="#E1F5FE", hover_color="#B3E5FC"):
+        self.app = app
         self.canvas = canvas
         self.dance = dance
         self.width = width
@@ -36,7 +37,7 @@ class DanceBox:
         # Create dancer count
         self.dancer_count = canvas.create_text(
             self.x + 15, self.y + 50, 
-            text=f"Dancers: {len(dance.dancers)}", 
+            text=f"Dancers: {[dancer.name for dancer in dance.dancers]}", 
             font=("Arial", 10), 
             anchor="w",
             tags=(f"count_{id(dance)}")
@@ -131,8 +132,9 @@ class DanceBox:
         self.canvas.itemconfig(self.box, fill=self.box_color, outline="#2196F3", width=2)
         
         # Find nearest slot and snap to it
-        app = self.canvas.master.master.master.master  # Navigate up to the app instance
-        nearest_slot, position = app.find_nearest_slot(self)
+        nearest_slot, position, old_position = self.app.find_nearest_slot(self)
+
+        print(nearest_slot, position, old_position)
         
         # Move to the nearest slot
         dy = nearest_slot - self.y
@@ -149,7 +151,7 @@ class DanceBox:
         self.canvas.itemconfig(self.position_indicator, text=str(position + 1))
         
         # Update all position indicators
-        app.update_all_positions()
+        self.app.update_all_positions()
     
     def on_enter(self, event):
         if not self.dance.locked:

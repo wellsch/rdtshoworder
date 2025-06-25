@@ -225,7 +225,7 @@ class DanceRosterApp:
         """Display dance objects as vertically ordered draggable boxes on the canvas"""
         # Clear any existing content
         self.canvas.delete("all")
-        self.dance_boxes = []
+        self.dance_boxes: list[DanceBox] = []
         self.vertical_slots = []
         
         # Display summary at the top
@@ -252,7 +252,7 @@ class DanceRosterApp:
             self.vertical_slots.append(y_position)
             
             # Create the dance box
-            dance_box = DanceBox(self.canvas, y_position, dance)
+            dance_box = DanceBox(self, self.canvas, y_position, dance)
             self.dance_boxes.append(dance_box)
         
         # Update canvas scroll region
@@ -273,6 +273,7 @@ class DanceRosterApp:
         nearest_slot = dragged_box.y
         box_center_y = dragged_box.y + dragged_box.height / 2
         position = dragged_box.dance.position
+        old_position = position
         
         # Create a list of available slots that are not occupied by locked boxes
         locked_slots = set()
@@ -293,7 +294,7 @@ class DanceRosterApp:
                 nearest_slot = slot
                 position = i
         
-        return nearest_slot, position
+        return nearest_slot, position, old_position
     
     def update_all_positions(self):
         """Update all position indicators based on vertical order"""

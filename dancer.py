@@ -1,5 +1,5 @@
 class Dancer:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
         self.dances = 1
         self.dances_done = 0
