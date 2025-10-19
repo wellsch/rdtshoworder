@@ -18,6 +18,10 @@ file = open("2025dances.txt")
 dances = set()
 all_dancers = {}
 
+rhea_jazz = None
+annabelle = None
+sol = None
+
 for line in file:
     [name, dancers_str] = line.split(":")
     dancers_names = set(dancers_str.strip().split(","))
@@ -30,7 +34,17 @@ for line in file:
             all_dancers[dancer_str] = Dancer(dancer_str)
         dancers.add(all_dancers[dancer_str])
     dance = Dance(name, dancers)
-    dances.add(dance)
+    if name == "Avery Contemporary":
+        dance.schedule_dance()
+    elif name == "Sol Contemporary":
+        sol = dance
+    else:
+        dances.add(dance)
+    
+    if name == "Rhea Jazz":
+        rhea_jazz = dance
+    elif name == "Annabelle Contemporary":
+        annabelle = dance
 
 add_edges(dances)
 weight_dances(dances)
@@ -40,7 +54,12 @@ qcs = 0
 instants = 0
 
 while len(dances) != 0:
-    min_dance = min(dances)
+    if len(dances) == 12:
+        min_dance = rhea_jazz
+    elif len(dances) == 11:
+        min_dance = annabelle
+    else:
+        min_dance = min(dances)
     if min_dance.weight == float('inf'):
         print("All remaining dances share a member with this dance")
         new_qcs, new_instants = min_dance.qcs()
@@ -54,6 +73,8 @@ while len(dances) != 0:
     for dancer in all_dancers.values():
         dancer.time_since_last_dance += 1
     num_dance += 1
+
+sol.schedule_dance()
 
 print("Quick Changes: " + str(qcs))
 print("Instants: " + str(instants))
